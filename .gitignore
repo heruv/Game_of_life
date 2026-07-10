@@ -1,0 +1,5 @@
+.vscode/
+target/
+src/main/resources/
+src/main/test/
+rules.md
