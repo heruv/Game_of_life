@@ -1,5 +1,5 @@
 .vscode/
 target/
-src/main/test/
+src/test/
 rules.md
 .log
