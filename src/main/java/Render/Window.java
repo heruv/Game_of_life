@@ -10,8 +10,55 @@ public class Window {
 
     private int[] vaoArray = new int[1];
     private int[] vboArray = new int[1];
-    private int[] eboArray = new int[1];
+
+    private int windowWidth;
+    private int windowHeight;
+
+    public Window(int windowWidth, int windowHeight) {
+        this.windowWidth = windowWidth;
+        this.windowHeight = windowHeight;
+    }
      
+    public float[] makeGrid(int gridCount, int width, int height) {
+        float gridSize = width / (float)gridCount;
+
+        float[] gridCords = new float[4 * 2 * gridCount]; // {x1, y1, x2, y2} top and down ends of straigth line
+
+        int index = 0;        
+        float tempWidth = width;
+        for (int i = 0; i < gridCount; i++) {
+
+            gridCords[index++] = tempWidth - gridSize;
+            gridCords[index++] = height;
+            gridCords[index++] = tempWidth - gridSize;
+            gridCords[index++] = 0.0f;
+
+            tempWidth -= gridSize;
+        }
+        
+        float tempHeight = height;
+        for (int i = 0; i < gridCount; i++) {
+            gridCords[index++] = 0.0f;
+            gridCords[index++] = tempHeight - gridSize;
+            gridCords[index++] = width;
+            gridCords[index++] = tempHeight - gridSize;
+
+            tempHeight -= gridSize;
+        }
+
+        return gridCords;
+    }
+
+    private void normalizeCords(float[] vertices, int width, int height) {
+        for (int i = 0; i < vertices.length; i += 2) {
+            // X: [0, width] → [-1, 1]
+            vertices[i] = (vertices[i] / width) * 2.0f - 1.0f;
+            
+            // Y: [0, height] → [1, -1] (инвертировано!)
+            vertices[i + 1] = 1.0f - (vertices[i + 1] / height) * 2.0f;
+        }
+    }
+
     public void run() {
 
         if (!glfwInit()) {
@@ -24,7 +71,7 @@ public class Window {
         glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
         glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
 
-        window = glfwCreateWindow(800, 600, "game of life", NULL, NULL);
+        window = glfwCreateWindow(windowWidth, windowHeight, "game of life", NULL, NULL);
         if (window == NULL) {
             throw new RuntimeException("unable to create a window");
         }
@@ -42,7 +89,14 @@ public class Window {
         glfwSwapInterval(1); 
 
         Shader shader = new Shader("/shaders/vertex.glsl", "/shaders/fragment.glsl");
-        buffurInit();
+
+        // temp solution
+        float[] vertices = makeGrid(20, 800, 800);
+        normalizeCords(vertices, windowWidth, windowHeight);
+        bufferInit(vertices);
+        //end temp
+
+        glfwSetFramebufferSizeCallback(window, (window, width, height) -> {GL33.glViewport(0, 0, width, height);});
 
         // Главный игровой цикл
         while (!glfwWindowShouldClose(window)) {
@@ -54,8 +108,7 @@ public class Window {
 
             glUseProgram(shader.ID);
             glBindVertexArray(vaoArray[0]);
-
-            glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_INT, 0);
+            glDrawArrays(GL_LINES, 0, vertices.length);
 
             glfwSwapBuffers(window); // Меняем буферы местами (показываем нарисованное)
             glfwPollEvents();        // Обрабатываем ввод (клавиатура/мышь)
@@ -64,23 +117,11 @@ public class Window {
         glfwTerminate();
     }
 
-    private void buffurInit() {
+    @SuppressWarnings("unused")
+    private void bufferInit() {
 
-        float[] vertices = new float[] {
-            0.5f,  0.5f, 0.0f,  // верхняя правая
-            0.5f, -0.5f, 0.0f,  // нижняя правая
-            -0.5f, -0.5f, 0.0f,  // нижняя левая
-            -0.5f,  0.5f, 0.0f   // верхняя левая 
-        };
-
-        int[] indices = new int[] {
-            0, 1, 3,
-            1, 2, 3
-        };
-
-        glGenBuffers(eboArray);
-        
-        
+        float[] vertices = new float[1];
+            
 
         glGenVertexArrays(vaoArray);
         glGenBuffers(vboArray);
@@ -90,10 +131,23 @@ public class Window {
         glBindBuffer(GL_ARRAY_BUFFER, vboArray[0]);
         glBufferData(GL_ARRAY_BUFFER, vertices, GL_STATIC_DRAW);
 
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, eboArray[0]);
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices, GL_STATIC_DRAW);
+        glVertexAttribPointer(0, 2, GL_FLOAT, false, 2 * Float.BYTES, 0L);
+        glEnableVertexAttribArray(0);
 
-        glVertexAttribPointer(0, 3, GL_FLOAT, false, 3 * Float.BYTES, 0L);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glBindVertexArray(vaoArray[0]);
+    }
+
+    private void bufferInit(float[] vertices) {
+        glGenVertexArrays(vaoArray);
+        glGenBuffers(vboArray);
+
+        glBindVertexArray(vaoArray[0]);
+
+        glBindBuffer(GL_ARRAY_BUFFER, vboArray[0]);
+        glBufferData(GL_ARRAY_BUFFER, vertices, GL_STATIC_DRAW);
+
+        glVertexAttribPointer(0, 2, GL_FLOAT, false, 2 * Float.BYTES, 0L);
         glEnableVertexAttribArray(0);
 
         glBindBuffer(GL_ARRAY_BUFFER, 0);
