@@ -1,4 +1,5 @@
 #version 330 core
+#pragma shader_stage(fragment)
 
 in vec4 vertexColor;
 

@@ -33,6 +33,9 @@ public class Shader {
         glAttachShader(ID, vertex);
         glAttachShader(ID, fragment);
         glLinkProgram(ID);
+        if (glGetProgrami(ID, GL_LINK_STATUS) == GL_FALSE) {
+            throw new RuntimeException("Program link error:\n" + glGetProgramInfoLog(ID));
+        }
 
         glDeleteShader(fragment);
         glDeleteShader(vertex);
