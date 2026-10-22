@@ -1,56 +1,70 @@
 package GameLogic;
 
 public class GameOfLife {
-    // TO-DO: add cicleTime field
-
     public int gridSize;
-    //probably should be private
-    public boolean[][] grid = new boolean[gridSize][gridSize]; // 0 - dead cell | 1 - live cell
+
+    public boolean[][] grid;
 
 
     public GameOfLife(int gridSize) {
         this.gridSize = gridSize;
+        this.grid = new boolean[gridSize][gridSize]; 
     }
 
-    public void updateState() {
-        for (int i = 0; i < gridSize-1; i++) {
-            for (int j = 0; j < gridSize-1; j++) {
-                int neigbors = checkNeigbors(i, j);
-                if (neigbors < 2 | neigbors > 3) {
-                    deadCell(grid[i][j]); 
-                }
-                else if (neigbors == 3) aliveCell(grid[i][j]);
+    public boolean getCellState(int xPos, int yPos) {
+        if (xPos < 0 || xPos >= gridSize || yPos < 0 || yPos >= gridSize) {
+            return false;
+        }
+
+        return grid[xPos][yPos];
+    }
+
+    public void setCellState(int xPos, int yPos, boolean state) {
+        try {
+            grid[xPos][yPos] = state;
+        } catch (IndexOutOfBoundsException iob) {
+            return ;
+        }
+    }
+
+    /**
+     * make every cell dead, for correect swaping buffers logick
+     */
+    public void anigilation() {
+        // is it posible to use one cicle here
+        for (int i = 0; i < grid.length; i++) {
+            for (int j = 0; j < grid[0].length; j++) {
+                grid[i][j] = false;
             }
         }
     }
 
-    private int checkNeigbors(int indexX, int indexY) {
-        int neigborsCount = 0;
+    public void proceed() {
+        boolean[][] next = new boolean[grid.length][grid[0].length];
 
-        boolean[] neigbors = new boolean[8];
+        for (int i = 0; i < grid.length; i++) {
+            for (int j = 0; j < grid[0].length; j++) {
+                int neighbours = 0;
 
-        neigbors[0] = grid[indexX][indexY+1];
-        neigbors[1] = grid[indexX+1][indexY+1];
-        neigbors[2] = grid[indexX+1][indexY];
-        neigbors[3] = grid[indexX+1][indexY-1];
-        neigbors[4] = grid[indexX][indexY-1];
-        neigbors[5] = grid[indexX-1][indexY-1];
-        neigbors[6] = grid[indexX-1][indexY];
-        neigbors[7] = grid[indexX-1][indexY+1];
+                if (getCellState(i - 1, j - 1)) neighbours++;
+                if (getCellState(i - 1, j))     neighbours++;
+                if (getCellState(i - 1, j + 1)) neighbours++;
+                if (getCellState(i,     j - 1)) neighbours++;
+                if (getCellState(i,     j + 1)) neighbours++;
+                if (getCellState(i + 1, j - 1)) neighbours++;
+                if (getCellState(i + 1, j))     neighbours++;
+                if (getCellState(i + 1, j + 1)) neighbours++;
 
-        for (boolean cell : neigbors) {
-            if (cell == true) neigborsCount++;
+                if (grid[i][j]) {
+                    //cell survied
+                    next[i][j] = neighbours == 2 || neighbours == 3;
+                } else {
+                    //dead cell alive
+                    next[i][j] = neighbours == 3;
+                }
+            }
         }
 
-        return neigborsCount;
-    }
-
-    // probably should make one function from this two functions
-    private void deadCell(boolean cell) {
-        cell = false;
-    }
-
-    private void aliveCell (boolean cell) {
-        cell = true;
+        grid = next;
     }
 }
