@@ -20,11 +20,11 @@ public class GameOfLife {
     }
 
     public void setCellState(int xPos, int yPos, boolean state) {
-        try {
-            grid[xPos][yPos] = state;
-        } catch (IndexOutOfBoundsException iob) {
-            return ;
+        if (xPos < 0 || xPos >= gridSize || yPos < 0 || yPos >= gridSize) {
+            grid[xPos][yPos] = false;
         }
+        
+        grid[xPos][yPos] = state;
     }
 
     /**
@@ -66,5 +66,18 @@ public class GameOfLife {
         }
 
         grid = next;
+    }
+
+    public void print() {
+        StringBuilder sb = new StringBuilder();
+
+        for (int i = 0; i < grid.length; i++) {
+            for (int j = 0; j < grid[0].length; j++) {
+                sb.append(getCellState(i, j) ? '#' : '.');
+            }
+            sb.append('\n');
+        }
+
+        System.out.print(sb);
     }
 }
