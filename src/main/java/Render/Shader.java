@@ -24,10 +24,12 @@ public class Shader {
         vertex = glCreateShader(GL_VERTEX_SHADER);
         glShaderSource(vertex, vertexCode);
         glCompileShader(vertex);
+        checkCompile(vertex, "VERTEX");
 
         fragment = glCreateShader(GL_FRAGMENT_SHADER);
         glShaderSource(fragment, fragmentCode);
         glCompileShader(fragment);
+        checkCompile(fragment, "FRAGMENT");
 
         ID = glCreateProgram();
         glAttachShader(ID, vertex);
@@ -41,6 +43,20 @@ public class Shader {
         glDeleteShader(vertex);
     }
 
+    public void setColour(float red, float green, float blue, float alpha) {
+        int colourLocation = glGetUniformLocation(this.ID, "vertexColour");
+
+        if (colourLocation == -1) {
+            System.out.println("can't find uniform variable");
+        }
+
+        glUniform4f(colourLocation, red, green, blue, alpha);
+    }
+
+    public void setColour(float red, float green, float blue) {
+        setColour(red, green, blue, 1.0f);
+    }
+
     private String loadResource(String path) throws IOException {
         try (InputStream stream = getClass().getResourceAsStream(path)) {
             if (stream == null) {
@@ -48,5 +64,11 @@ public class Shader {
             }
             return new String(stream.readAllBytes());
         } 
+    }
+
+    private void checkCompile(int shader, String type) {
+        if (glGetShaderi(shader, GL_COMPILE_STATUS) == GL_FALSE) {
+            throw new RuntimeException(type + "shader compile erroe:\n" + glGetShaderInfoLog(shader));
+        }
     }
 }

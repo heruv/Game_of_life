@@ -97,6 +97,9 @@ public class Window {
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
             glUseProgram(shader.ID);
+
+            shader.setColour(1.0f, 1.0f, 1.0f);
+
             glBindVertexArray(vaoArray[0]);
             glDrawArrays(GL_LINES, 0, vertices.length / 2);
 
