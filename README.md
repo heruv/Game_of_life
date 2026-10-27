@@ -15,21 +15,6 @@ The project is split into two main parts:
   - `Window` — creates a GLFW window with an OpenGL 3.3 core context, builds the grid line geometry, uploads it to the GPU (VAO/VBO), and runs the render loop. On startup it prefers the Wayland backend when available, otherwise falls back to the platform default.
   - `Shader` — loads, compiles and links GLSL vertex/fragment shaders from `src/main/resources/shaders/`, and exposes a `setColour` uniform setter for the grid line colour.
 
-## Project structure
-
-```
-src/
-├── main/
-│   ├── java/
-│   │   ├── Main.java                 # entry point: builds a 10×10 world and an 800×800 window
-│   │   ├── GameLogic/GameOfLife.java # simulation: get/setCellState, proceed(), print()
-│   │   └── Render/
-│   │       ├── Window.java           # GLFW window, grid geometry, render loop
-│   │       └── Shader.java           # GLSL shader loading/compilation
-│   └── resources/shaders/            # vertex.glsl, fragment.glsl
-└── test/java/GameLogic/GameOfLifeTest.java
-```
-
 ## Requirements
 
 - JDK 26+ (the build targets Java release 26)
@@ -54,7 +39,3 @@ mvn test
 
 - **Esc** — quit the application
 
-## Roadmap
-
-- Interactive cell toggling via 2D input (mouse)
-- Wiring the simulation step loop into the render loop and drawing live cells
