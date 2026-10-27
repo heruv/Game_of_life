@@ -21,6 +21,8 @@ public class Window {
     private GameOfLife world;
 
     private int cellVertexCount;
+    private boolean paused;
+    private double lastStep;
 
     public Window(int windowWidth, int windowHeight, GameOfLife world) {
         this.windowWidth = windowWidth;
@@ -132,6 +134,9 @@ public class Window {
             if (key == GLFW_KEY_ESCAPE && action == GLFW_RELEASE) {
                 glfwSetWindowShouldClose(window, true);
             }
+            if (key == GLFW_KEY_SPACE && action == GLFW_PRESS) {
+                paused = !paused;
+            }
         });
 
         glfwMakeContextCurrent(window);
@@ -145,6 +150,7 @@ public class Window {
         bufferInit(vertices);
         cellBufferInit();
 
+        lastStep = glfwGetTime();
         glfwSetFramebufferSizeCallback(window, (window, width, height) -> {
             glViewport(0, 0, width, height);
         });
@@ -154,6 +160,13 @@ public class Window {
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
             glUseProgram(shader.ID);
+
+            // step the simulation every 150 ms, not every frame
+            double now = glfwGetTime();
+            if (!paused && now - lastStep >= 0.15) {
+                lastStep = now;
+                world.proceed();   // sets dirtyFlag, so the check below re-uploads
+            }
 
             // re-upload cell data only when the grid changed
             // (startup, after proceed(), later after mouse edits)
