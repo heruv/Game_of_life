@@ -2,13 +2,14 @@ package GameLogic;
 
 public class GameOfLife {
     public int gridSize;
+    public boolean dirtyFlag;
 
     public boolean[][] grid;
 
-
     public GameOfLife(int gridSize) {
         this.gridSize = gridSize;
-        this.grid = new boolean[gridSize][gridSize]; 
+        this.grid = new boolean[gridSize][gridSize];
+        this.dirtyFlag = true;
     }
 
     public boolean getCellState(int xPos, int yPos) {
@@ -21,11 +22,11 @@ public class GameOfLife {
 
     public void setCellState(int xPos, int yPos, boolean state) {
         if (xPos < 0 || xPos >= gridSize || yPos < 0 || yPos >= gridSize) {
-            grid[xPos][yPos] = false;
             return ;
         }
-        
+
         grid[xPos][yPos] = state;
+        dirtyFlag = true;
     }
 
     /**
@@ -67,6 +68,7 @@ public class GameOfLife {
         }
 
         grid = next;
+        dirtyFlag = true;
     }
 
     public void print() {

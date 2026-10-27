@@ -1,25 +1,8 @@
 package Render;
 
+import GameLogic.GameOfLife;
 import org.lwjgl.opengl.*;
 import static org.lwjgl.glfw.GLFW.*;
-import static org.lwjgl.opengl.GL11.GL_COLOR_BUFFER_BIT;
-import static org.lwjgl.opengl.GL11.GL_DEPTH_BUFFER_BIT;
-import static org.lwjgl.opengl.GL11.GL_FLOAT;
-import static org.lwjgl.opengl.GL11.GL_LINES;
-import static org.lwjgl.opengl.GL11.glClear;
-import static org.lwjgl.opengl.GL11.glClearColor;
-import static org.lwjgl.opengl.GL11.glDrawArrays;
-import static org.lwjgl.opengl.GL11.glViewport;
-import static org.lwjgl.opengl.GL15.GL_ARRAY_BUFFER;
-import static org.lwjgl.opengl.GL15.GL_STATIC_DRAW;
-import static org.lwjgl.opengl.GL15.glBindBuffer;
-import static org.lwjgl.opengl.GL15.glBufferData;
-import static org.lwjgl.opengl.GL15.glGenBuffers;
-import static org.lwjgl.opengl.GL20.glEnableVertexAttribArray;
-import static org.lwjgl.opengl.GL20.glUseProgram;
-import static org.lwjgl.opengl.GL20.glVertexAttribPointer;
-import static org.lwjgl.opengl.GL30.glBindVertexArray;
-import static org.lwjgl.opengl.GL30.glGenVertexArrays;
 import static org.lwjgl.opengl.GL33.*;
 import static org.lwjgl.system.MemoryUtil.NULL;
 
@@ -28,15 +11,22 @@ public class Window {
 
     private int[] vaoArray = new int[1];
     private int[] vboArray = new int[1];
+    private int[] cellVao = new int[1];
+    private int[] cellVbo = new int[1];
 
     private int windowWidth;
     private int windowHeight;
     private int cellCount;
 
-    public Window(int windowWidth, int windowHeight, int cellCount) {
+    private GameOfLife world;
+
+    private int cellVertexCount;
+
+    public Window(int windowWidth, int windowHeight, GameOfLife world) {
         this.windowWidth = windowWidth;
         this.windowHeight = windowHeight;
-        this.cellCount = cellCount;
+        this.cellCount = world.gridSize;
+        this.world = world;
     }
      
     private float[] makeGrid(int gridCount, int width, int height) {
@@ -66,18 +56,48 @@ public class Window {
     }
 
     private float[] drawCell(boolean[][] gridState) {
-        int vertexCount = 0;
+        int rows = gridState.length;
+        int cols = gridState[0].length;
 
-        for (int i = 0; i < gridState.length; i++) {
-            for (int j = 0; j < gridState[0].length; j++) {
+        int cellCount = 0;
+        for (int i = 0; i < rows; i++) {
+            for (int j = 0; j < cols; j++) {
                 if (gridState[i][j]) {
-                    vertexCount++;
+                    cellCount++;
                 }
             }
         }
 
-        float[] cellsCords = new float[6 * vertexCount];
+        // 12 floats per cell: 6 vertices * 2 coordinates
+        //optimize for only 4 vertices later
+        float[] cellsCords = new float[12 * cellCount];
 
+        float cellWidth = windowWidth / (float) cols;
+        float cellHeight = windowHeight / (float) rows;
+        int index = 0;
+
+        for (int i = 0; i < rows; i++) {
+            for (int j = 0; j < cols; j++) {
+                if (!gridState[i][j]) continue;
+
+                float left = j * cellWidth;      // column goes with x
+                float right = left + cellWidth;
+                float top = i * cellHeight;      // row goes with y
+                float bottom = top + cellHeight;
+
+                // triangle 1
+                cellsCords[index++] = left;   cellsCords[index++] = top;
+                cellsCords[index++] = left;   cellsCords[index++] = bottom;
+                cellsCords[index++] = right;  cellsCords[index++] = top;
+
+                // triangle 2
+                cellsCords[index++] = right;  cellsCords[index++] = top;
+                cellsCords[index++] = left;   cellsCords[index++] = bottom;
+                cellsCords[index++] = right;  cellsCords[index++] = bottom;
+            }
+        }
+
+        normalizeCords(cellsCords, windowWidth, windowHeight);
         return cellsCords;
     }
 
@@ -123,6 +143,7 @@ public class Window {
         float[] vertices = makeGrid(cellCount, windowWidth, windowHeight);
         normalizeCords(vertices, windowWidth, windowHeight);
         bufferInit(vertices);
+        cellBufferInit();
 
         glfwSetFramebufferSizeCallback(window, (window, width, height) -> {
             glViewport(0, 0, width, height);
@@ -134,10 +155,26 @@ public class Window {
 
             glUseProgram(shader.ID);
 
+            // re-upload cell data only when the grid changed
+            // (startup, after proceed(), later after mouse edits)
+            if (world.dirtyFlag) {
+                updateCells();
+                world.dirtyFlag = false;
+            }
+
+            // live cells; skip the draw call when there are none
+            if (cellVertexCount > 0) {
+                shader.setColour(0.0f, 0.8f, 0.3f);
+                glBindVertexArray(cellVao[0]);
+                glDrawArrays(GL_TRIANGLES, 0, cellVertexCount);
+            }
+
             shader.setColour(1.0f, 1.0f, 1.0f);
 
             glBindVertexArray(vaoArray[0]);
             glDrawArrays(GL_LINES, 0, vertices.length / 2);
+
+            
 
             glfwSwapBuffers(window);
             glfwPollEvents();
@@ -160,5 +197,37 @@ public class Window {
 
         glBindBuffer(GL_ARRAY_BUFFER, 0);
         glBindVertexArray(0); // <-- FIX: Unbind with 0 instead of re-binding the VAO
+    }
+
+    private void cellBufferInit() {
+        glGenVertexArrays(cellVao);
+        glGenBuffers(cellVbo);
+
+        glBindVertexArray(cellVao[0]);
+
+        glBindBuffer(GL_ARRAY_BUFFER, cellVbo[0]);
+
+        glVertexAttribPointer(0, 2, GL_FLOAT, false, 2 * Float.BYTES, 0L);
+        glEnableVertexAttribArray(0);
+
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glBindVertexArray(0); 
+    }
+
+    /**
+     * rebuilds the cell vertex array from the current grid and re-uploads it
+     * call only when the grid changed (dirtyFlag), not every frame
+     */
+    private void updateCells() {
+        float[] cellsCords = drawCell(world.grid);
+
+        glBindVertexArray(cellVao[0]);
+        glBindBuffer(GL_ARRAY_BUFFER, cellVbo[0]);
+        glBufferData(GL_ARRAY_BUFFER, cellsCords, GL_DYNAMIC_DRAW);
+        glBindBuffer(GL_ARRAY_BUFFER, 0);
+        glBindVertexArray(0);
+
+        // alive cells * 6 vertices (two triangles)
+        cellVertexCount = cellsCords.length / 2;
     }
 }
