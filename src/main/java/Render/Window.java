@@ -6,6 +6,12 @@ import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL33.*;
 import static org.lwjgl.system.MemoryUtil.NULL;
 
+/**
+ * Renders the game grid and its live cells in a GLFW window using OpenGL 3.3.
+ * <p>
+ * Keeps two vertex buffers: one for the static grid lines and one for the live
+ * cells, which is re-uploaded only when {@code dirtyFlag} signals a grid change.
+ */
 public class Window {
     private long window;
 
@@ -24,6 +30,11 @@ public class Window {
     private boolean paused;
     private double lastStep;
 
+    /**
+     * Creates a window that renders the given simulation.
+     *
+     * @param world the simulation to render; its grid size sets the cell count
+     */
     public Window(int windowWidth, int windowHeight, GameOfLife world) {
         this.windowWidth = windowWidth;
         this.windowHeight = windowHeight;
@@ -110,6 +121,11 @@ public class Window {
         }
     }
 
+    /**
+     * Opens the window and runs the render loop, blocking until it is closed.
+     * <p>
+     * The simulation steps every 150 ms; Space toggles pause, Esc closes the window.
+     */
     public void run() {
         // Prefer Wayland backend natively if supported by GLFW
         if (glfwPlatformSupported(GLFW_PLATFORM_WAYLAND)) {
@@ -227,10 +243,6 @@ public class Window {
         glBindVertexArray(0); 
     }
 
-    /**
-     * rebuilds the cell vertex array from the current grid and re-uploads it
-     * call only when the grid changed (dirtyFlag), not every frame
-     */
     private void updateCells() {
         float[] cellsCords = drawCell(world.grid);
 
