@@ -1,7 +1,11 @@
 package Render;
 
-import GameLogic.GameOfLife;
 import org.lwjgl.opengl.*;
+
+import Events.EventBus;
+import Events.GameEvent;
+import Events.GameEventListener;
+
 import static org.lwjgl.glfw.GLFW.*;
 import static org.lwjgl.opengl.GL33.*;
 import static org.lwjgl.system.MemoryUtil.NULL;
@@ -12,7 +16,7 @@ import static org.lwjgl.system.MemoryUtil.NULL;
  * Keeps two vertex buffers: one for the static grid lines and one for the live
  * cells, which is re-uploaded only when {@code dirtyFlag} signals a grid change.
  */
-public class Window {
+public class Window implements GameEventListener{
     private long window;
 
     private int[] vaoArray = new int[1];
@@ -24,22 +28,21 @@ public class Window {
     private int windowHeight;
     private int cellCount;
 
-    private GameOfLife world;
+    private boolean[][] gridState;
+    private boolean cellsDirty = false;
 
     private int cellVertexCount;
-    private boolean paused;
-    private double lastStep;
 
+    private EventBus bus;
     /**
      * Creates a window that renders the given simulation.
      *
-     * @param world the simulation to render; its grid size sets the cell count
      */
-    public Window(int windowWidth, int windowHeight, GameOfLife world) {
+    public Window(int windowWidth, int windowHeight, int cellCount, EventBus bus) {
         this.windowWidth = windowWidth;
         this.windowHeight = windowHeight;
-        this.cellCount = world.gridSize;
-        this.world = world;
+        this.cellCount = cellCount ;
+        this.bus = bus;
     }
      
     private float[] makeGrid(int gridCount, int width, int height) {
@@ -72,18 +75,18 @@ public class Window {
         int rows = gridState.length;
         int cols = gridState[0].length;
 
-        int cellCount = 0;
+        int liveCellCount = 0;
         for (int i = 0; i < rows; i++) {
             for (int j = 0; j < cols; j++) {
                 if (gridState[i][j]) {
-                    cellCount++;
+                    liveCellCount++;
                 }
             }
         }
 
         // 12 floats per cell: 6 vertices * 2 coordinates
         //optimize for only 4 vertices later
-        float[] cellsCords = new float[12 * cellCount];
+        float[] cellsCords = new float[12 * liveCellCount];
 
         float cellWidth = windowWidth / (float) cols;
         float cellHeight = windowHeight / (float) rows;
@@ -151,7 +154,7 @@ public class Window {
                 glfwSetWindowShouldClose(window, true);
             }
             if (key == GLFW_KEY_SPACE && action == GLFW_PRESS) {
-                paused = !paused;
+                bus.publish(GameEvent.TOGGLE_PAUSE);
             }
         });
 
@@ -166,7 +169,6 @@ public class Window {
         bufferInit(vertices);
         cellBufferInit();
 
-        lastStep = glfwGetTime();
         glfwSetFramebufferSizeCallback(window, (window, width, height) -> {
             glViewport(0, 0, width, height);
         });
@@ -177,18 +179,13 @@ public class Window {
 
             glUseProgram(shader.ID);
 
-            // step the simulation every 150 ms, not every frame
-            double now = glfwGetTime();
-            if (!paused && now - lastStep >= 0.15) {
-                lastStep = now;
-                world.proceed();   // sets dirtyFlag, so the check below re-uploads
-            }
 
+            bus.publish(GameEvent.TICK, glfwGetTime());
             // re-upload cell data only when the grid changed
             // (startup, after proceed(), later after mouse edits)
-            if (world.dirtyFlag) {
+            if (cellsDirty) {
                 updateCells();
-                world.dirtyFlag = false;
+                cellsDirty = false;
             }
 
             // live cells; skip the draw call when there are none
@@ -244,7 +241,7 @@ public class Window {
     }
 
     private void updateCells() {
-        float[] cellsCords = drawCell(world.grid);
+        float[] cellsCords = drawCell(gridState);
 
         glBindVertexArray(cellVao[0]);
         glBindBuffer(GL_ARRAY_BUFFER, cellVbo[0]);
@@ -255,4 +252,12 @@ public class Window {
         // alive cells * 6 vertices (two triangles)
         cellVertexCount = cellsCords.length / 2;
     }
+
+    @Override 
+    public void onEvent(GameEvent event, Object data) {
+        if (event == GameEvent.STATE_CHANGED) {
+            gridState = (boolean[][]) data;
+            cellsDirty = true;
+        }
+     }
 }

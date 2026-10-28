@@ -1,16 +1,23 @@
 package GameLogic;
 
+import Events.EventBus;
+import Events.GameEvent;
+
 public class GameOfLife {
     public int gridSize;
-    public boolean dirtyFlag;
-
     public boolean[][] grid;
 
-    public GameOfLife(int gridSize) {
+    private EventBus bus;
+
+    public GameOfLife(int gridSize, EventBus bus) {
         this.gridSize = gridSize;
         this.grid = new boolean[gridSize][gridSize];
-        this.dirtyFlag = true;
+        this.bus = bus;
     }
+
+    public GameOfLife(int gridSize) {
+        this(gridSize, new EventBus());
+    }   
 
     public boolean getCellState(int xPos, int yPos) {
         if (xPos < 0 || xPos >= gridSize || yPos < 0 || yPos >= gridSize) {
@@ -26,7 +33,6 @@ public class GameOfLife {
         }
 
         grid[xPos][yPos] = state;
-        dirtyFlag = true;
     }
 
     /**
@@ -39,6 +45,7 @@ public class GameOfLife {
                 grid[i][j] = false;
             }
         }
+
     }
 
     public void proceed() {
@@ -68,7 +75,7 @@ public class GameOfLife {
         }
 
         grid = next;
-        dirtyFlag = true;
+        bus.publish(GameEvent.STATE_CHANGED, next); //TODO: replace next to copyofgrid() later
     }
 
     public void print() {
@@ -83,4 +90,5 @@ public class GameOfLife {
 
         System.out.print(sb);
     }
+
 }

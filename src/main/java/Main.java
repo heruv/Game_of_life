@@ -1,3 +1,5 @@
+import Events.EventBus;
+import GameLogic.GameLoop;
 import GameLogic.GameOfLife;
 import Render.Window;
 
@@ -7,8 +9,14 @@ public class Main {
         int gridSize = 100;
         int wigth = 800, heigth = 800;
 
-        GameOfLife world = new GameOfLife(gridSize);
-        Window window = new Window(wigth, heigth, world);
+        EventBus bus = new EventBus();
+
+        GameOfLife world = new GameOfLife(gridSize, bus);
+        Window window = new Window(wigth, heigth, gridSize, bus);
+        GameLoop loop = new GameLoop(world, 0.15);
+
+        bus.subscribe(loop);
+        bus.subscribe(window);
 
         world.grid[2][2] = true;
         world.grid[2][3] = true;
@@ -16,6 +24,7 @@ public class Main {
         world.grid[1][4] = true;
         world.grid[0][3] = true;
         
+
         window.run();
     }
 }
