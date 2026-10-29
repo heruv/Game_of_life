@@ -7,6 +7,29 @@ import Events.GameEvent;
 import Events.GameEventListener;
 
 import static org.lwjgl.glfw.GLFW.*;
+import static org.lwjgl.opengl.GL11.GL_COLOR_BUFFER_BIT;
+import static org.lwjgl.opengl.GL11.GL_DEPTH_BUFFER_BIT;
+import static org.lwjgl.opengl.GL11.GL_FLOAT;
+import static org.lwjgl.opengl.GL11.GL_LINES;
+import static org.lwjgl.opengl.GL11.GL_TRIANGLES;
+import static org.lwjgl.opengl.GL11.GL_UNSIGNED_INT;
+import static org.lwjgl.opengl.GL11.glClear;
+import static org.lwjgl.opengl.GL11.glClearColor;
+import static org.lwjgl.opengl.GL11.glDrawArrays;
+import static org.lwjgl.opengl.GL11.glDrawElements;
+import static org.lwjgl.opengl.GL11.glViewport;
+import static org.lwjgl.opengl.GL15.GL_ARRAY_BUFFER;
+import static org.lwjgl.opengl.GL15.GL_DYNAMIC_DRAW;
+import static org.lwjgl.opengl.GL15.GL_ELEMENT_ARRAY_BUFFER;
+import static org.lwjgl.opengl.GL15.GL_STATIC_DRAW;
+import static org.lwjgl.opengl.GL15.glBindBuffer;
+import static org.lwjgl.opengl.GL15.glBufferData;
+import static org.lwjgl.opengl.GL15.glGenBuffers;
+import static org.lwjgl.opengl.GL20.glEnableVertexAttribArray;
+import static org.lwjgl.opengl.GL20.glUseProgram;
+import static org.lwjgl.opengl.GL20.glVertexAttribPointer;
+import static org.lwjgl.opengl.GL30.glBindVertexArray;
+import static org.lwjgl.opengl.GL30.glGenVertexArrays;
 import static org.lwjgl.opengl.GL33.*;
 import static org.lwjgl.system.MemoryUtil.NULL;
 
@@ -21,20 +44,23 @@ public class Window implements GameEventListener{
 
     private int[] vaoArray = new int[1];
     private int[] vboArray = new int[1];
+
     private int[] cellVao = new int[1];
     private int[] cellVbo = new int[1];
     private int[] cellEbo = new int[1];
 
     private int windowWidth;
     private int windowHeight;
-    private int cellCount;
+
+    private float gridSize;
 
     private boolean[][] gridState;
     private boolean cellsDirty = false;
-
+    private int cellCount;
     private int cellIndexCount;
 
     private EventBus bus;
+
     /**
      * Creates a window that renders the given simulation.
      *
@@ -47,7 +73,7 @@ public class Window implements GameEventListener{
     }
      
     private float[] makeGrid(int gridCount, int width, int height) {
-        float gridSize = width / (float)gridCount;
+        gridSize = width / (float)gridCount;
         float[] gridCords = new float[4 * 2 * gridCount];
 
         int index = 0;        
@@ -157,7 +183,19 @@ public class Window implements GameEventListener{
             }
         });
 
-        glfwSetCursorPosCallback(window, (window, xpos, ypos) -> {System.out.printf("Xpos: %f, Ypos: %f\n", xpos, ypos);});
+        glfwSetMouseButtonCallback(window, (window, button, action, mods) -> {
+            double[] x = new double[1];
+            double[] y = new double[1];
+            glfwGetCursorPos(window, x, y);
+
+            if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
+                defineNewCellCords(x[0], y[0]);
+            }
+        });
+
+        // glfwSetCursorPosCallback(window, (window, xpos, ypos) -> {
+        //     // System.out.printf("Xpos: %f, Ypos: %f\n", xpos, ypos);
+        // });
 
         glfwMakeContextCurrent(window);
         GL.createCapabilities(); 
@@ -172,6 +210,8 @@ public class Window implements GameEventListener{
 
         glfwSetFramebufferSizeCallback(window, (window, width, height) -> {
             glViewport(0, 0, width, height);
+            windowWidth = width;
+            windowHeight = height;
         });
 
         while (!glfwWindowShouldClose(window)) {
@@ -280,5 +320,21 @@ public class Window implements GameEventListener{
         }
     }
 
-    
+    private void defineNewCellCords(double xPos, double yPos) {
+        if (xPos < 0 || xPos >= windowWidth || yPos < 0 || yPos >= windowHeight) {
+            return;
+        }
+
+        int[] cords = new int[2];
+
+        int col = (int) (xPos / windowWidth * cellCount);
+        int row = (int) (yPos / windowHeight * cellCount);
+
+        cords[0] = Math.min(row, cellCount - 1);
+        cords[1] = Math.min(col, cellCount - 1);
+
+        System.out.printf("x: %d, y: %d\n", cords[0], cords[1]);
+
+        bus.publish(GameEvent.ADD_CELL, cords);
+    }
 }

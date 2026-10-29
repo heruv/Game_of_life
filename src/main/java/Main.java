@@ -18,13 +18,6 @@ public class Main {
         bus.subscribe(loop);
         bus.subscribe(window);
 
-        world.grid[2][2] = true;
-        world.grid[2][3] = true;
-        world.grid[2][4] = true;
-        world.grid[1][4] = true;
-        world.grid[0][3] = true;
-        
-
         window.run();
     }
 }

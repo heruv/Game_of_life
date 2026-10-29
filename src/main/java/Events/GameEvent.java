@@ -4,5 +4,6 @@ public enum GameEvent {
     STATE_CHANGED,
     TICK,
     TOGGLE_PAUSE,
-    ABORT
+    ABORT,
+    ADD_CELL
 }

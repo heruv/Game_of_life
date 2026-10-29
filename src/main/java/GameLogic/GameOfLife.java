@@ -33,6 +33,8 @@ public class GameOfLife {
         }
 
         grid[xPos][yPos] = state;
+
+        bus.publish(GameEvent.STATE_CHANGED, grid);
     }
 
     /**

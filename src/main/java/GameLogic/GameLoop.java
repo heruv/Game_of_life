@@ -7,7 +7,7 @@ public class GameLoop implements GameEventListener {
     private final GameOfLife world;
     private final double stepInterval;   // seconds between generations
 
-    private boolean paused = false;
+    private boolean paused = true;
     private double lastStep = -1;        // -1 means "clock not started yet"
 
     public GameLoop(GameOfLife world, double stepInterval) {
@@ -28,6 +28,10 @@ public class GameLoop implements GameEventListener {
             case ABORT:
                 world.anigilation();
                 break;
+            case ADD_CELL:
+                if (data instanceof int[] array) {
+                    world.setCellState(array[0], array[1], true);
+                }
             default:
                 break;
         }
@@ -44,4 +48,5 @@ public class GameLoop implements GameEventListener {
             world.proceed();         // publishes STATE_CHANGED
         }
     }
+
 }
