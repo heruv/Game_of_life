@@ -153,8 +153,11 @@ public class Window implements GameEventListener{
             if (key == GLFW_KEY_ESCAPE && action == GLFW_RELEASE) {
                 glfwSetWindowShouldClose(window, true);
             }
-            if (key == GLFW_KEY_SPACE && action == GLFW_PRESS) {
+            if (key == GLFW_KEY_SPACE && action == GLFW_RELEASE) {
                 bus.publish(GameEvent.TOGGLE_PAUSE);
+            }
+            if (key == GLFW_KEY_TAB && action == GLFW_RELEASE) {
+                bus.publish(GameEvent.ABORT);
             }
         });
 

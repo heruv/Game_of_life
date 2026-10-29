@@ -46,6 +46,7 @@ public class GameOfLife {
             }
         }
 
+        bus.publish(GameEvent.STATE_CHANGED, grid);
     }
 
     public void proceed() {

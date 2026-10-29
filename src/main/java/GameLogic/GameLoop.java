@@ -25,7 +25,9 @@ public class GameLoop implements GameEventListener {
             case TICK:
                 handleTick((Double) data);
                 break;
-
+            case ABORT:
+                world.anigilation();
+                break;
             default:
                 break;
         }

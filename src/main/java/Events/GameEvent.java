@@ -3,5 +3,6 @@ package Events;
 public enum GameEvent {
     STATE_CHANGED,
     TICK,
-    TOGGLE_PAUSE
+    TOGGLE_PAUSE,
+    ABORT
 }
