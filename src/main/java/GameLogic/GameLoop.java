@@ -30,7 +30,7 @@ public class GameLoop implements GameEventListener {
                 break;
             case ADD_CELL:
                 if (data instanceof int[] array) {
-                    world.setCellState(array[0], array[1], true);
+                    world.setCellState(array[0], array[1]);
                 }
             default:
                 break;

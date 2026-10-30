@@ -27,14 +27,14 @@ public class GameOfLife {
         return grid[xPos][yPos];
     }
 
-    public void setCellState(int xPos, int yPos, boolean state) {
+    public void setCellState(int xPos, int yPos) {
         if (xPos < 0 || xPos >= gridSize || yPos < 0 || yPos >= gridSize) {
             return ;
         }
 
-        grid[xPos][yPos] = state;
+        grid[xPos][yPos] = !grid[xPos][yPos];
 
-        bus.publish(GameEvent.STATE_CHANGED, grid);
+        bus.publish(GameEvent.CELL_EDITED, new int[]{xPos, yPos, grid[xPos][yPos] ? 1 : 0});
     }
 
     /**
