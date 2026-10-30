@@ -57,6 +57,13 @@ public class Shader {
         setColour(red, green, blue, 1.0f);
     }
 
+    public void setUniformInt(String name, int value) {
+        int loc = glGetUniformLocation(this.ID, name);
+        if (loc != -1) {
+            glUniform1i(loc, value);
+        }
+    }
+
     private String loadResource(String path) throws IOException {
         try (InputStream stream = getClass().getResourceAsStream(path)) {
             if (stream == null) {

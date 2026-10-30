@@ -5,5 +5,6 @@ public enum GameEvent {
     TICK,
     TOGGLE_PAUSE,
     ABORT,
-    ADD_CELL
+    ADD_CELL,
+    CELL_EDITED,
 }

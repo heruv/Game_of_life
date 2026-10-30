@@ -7,29 +7,6 @@ import Events.GameEvent;
 import Events.GameEventListener;
 
 import static org.lwjgl.glfw.GLFW.*;
-import static org.lwjgl.opengl.GL11.GL_COLOR_BUFFER_BIT;
-import static org.lwjgl.opengl.GL11.GL_DEPTH_BUFFER_BIT;
-import static org.lwjgl.opengl.GL11.GL_FLOAT;
-import static org.lwjgl.opengl.GL11.GL_LINES;
-import static org.lwjgl.opengl.GL11.GL_TRIANGLES;
-import static org.lwjgl.opengl.GL11.GL_UNSIGNED_INT;
-import static org.lwjgl.opengl.GL11.glClear;
-import static org.lwjgl.opengl.GL11.glClearColor;
-import static org.lwjgl.opengl.GL11.glDrawArrays;
-import static org.lwjgl.opengl.GL11.glDrawElements;
-import static org.lwjgl.opengl.GL11.glViewport;
-import static org.lwjgl.opengl.GL15.GL_ARRAY_BUFFER;
-import static org.lwjgl.opengl.GL15.GL_DYNAMIC_DRAW;
-import static org.lwjgl.opengl.GL15.GL_ELEMENT_ARRAY_BUFFER;
-import static org.lwjgl.opengl.GL15.GL_STATIC_DRAW;
-import static org.lwjgl.opengl.GL15.glBindBuffer;
-import static org.lwjgl.opengl.GL15.glBufferData;
-import static org.lwjgl.opengl.GL15.glGenBuffers;
-import static org.lwjgl.opengl.GL20.glEnableVertexAttribArray;
-import static org.lwjgl.opengl.GL20.glUseProgram;
-import static org.lwjgl.opengl.GL20.glVertexAttribPointer;
-import static org.lwjgl.opengl.GL30.glBindVertexArray;
-import static org.lwjgl.opengl.GL30.glGenVertexArrays;
 import static org.lwjgl.opengl.GL33.*;
 import static org.lwjgl.system.MemoryUtil.NULL;
 
@@ -55,6 +32,7 @@ public class Window implements GameEventListener{
     private float gridSize;
 
     private boolean[][] gridState;
+    private int[] cellAge;
     private boolean cellsDirty = false;
     private int cellCount;
     private int cellIndexCount;
@@ -69,6 +47,7 @@ public class Window implements GameEventListener{
         this.windowWidth = windowWidth;
         this.windowHeight = windowHeight;
         this.cellCount = cellCount ;
+        this.cellAge = new int[cellCount * cellCount];
         this.bus = bus;
     }
      
@@ -99,6 +78,8 @@ public class Window implements GameEventListener{
     }
 
     private float[] drawCell(boolean[][] gridState) {
+        if (gridState == null) return new float[0];
+
         int rows = gridState.length;
         int cols = gridState[0].length;
 
@@ -111,8 +92,8 @@ public class Window implements GameEventListener{
             }
         }
 
-        // 8 floats per cell: 4 vertices * 2 coordinates
-        float[] cellsCords = new float[8 * liveCellCount];
+        // 20 floats per cell: 4 vertices * (2 pos + 3 color)
+        float[] cellsCords = new float[20 * liveCellCount];
 
         float cellWidth = windowWidth / (float) cols;
         float cellHeight = windowHeight / (float) rows;
@@ -122,25 +103,60 @@ public class Window implements GameEventListener{
             for (int j = 0; j < cols; j++) {
                 if (!gridState[i][j]) continue;
 
+                int age = cellAge[i * cols + j];
+                // Age gradient: 0.0 (newborn) -> 1.0 (20+ generations)
+                // Green -> Yellow -> Red -> Purple
+                float t = Math.min((age - 1) / 20.0f, 1.0f);
+                float r, g, b;
+                if (t < 0.333f) {
+                    // Phase 1: Green -> Yellow (ramp red up)
+                    float u = t / 0.333f;
+                    r = u;
+                    g = 1.0f;
+                    b = 0.0f;
+                } else if (t < 0.666f) {
+                    // Phase 2: Yellow -> Red (ramp green down)
+                    float u = (t - 0.333f) / 0.333f;
+                    r = 1.0f;
+                    g = 1.0f - u;
+                    b = 0.0f;
+                } else {
+                    // Phase 3: Red -> Purple (ramp blue up, deepen red)
+                    float u = (t - 0.666f) / 0.334f;
+                    r = 1.0f - 0.3f * u; // 1.0 -> 0.7
+                    g = 0.0f;
+                    b = 0.9f * u;        // 0.0 -> 0.9
+                }
+
                 float left = j * cellWidth;      // column goes with x
                 float right = left + cellWidth;
                 float top = i * cellHeight;      // row goes with y
                 float bottom = top + cellHeight;
 
-                // 4 quad vertices
-                cellsCords[index++] = left;   cellsCords[index++] = top;     // vertex 0
-                cellsCords[index++] = left;   cellsCords[index++] = bottom;  // vertex 1
-                cellsCords[index++] = right;  cellsCords[index++] = top;     // vertex 2
-                cellsCords[index++] = right;  cellsCords[index++] = bottom;  // vertex 3
+                // vertex 0: top-left
+                cellsCords[index++] = left;   cellsCords[index++] = top;
+                cellsCords[index++] = r;      cellsCords[index++] = g;      cellsCords[index++] = b;
+
+                // vertex 1: bottom-left
+                cellsCords[index++] = left;   cellsCords[index++] = bottom;
+                cellsCords[index++] = r;      cellsCords[index++] = g;      cellsCords[index++] = b;
+
+                // vertex 2: top-right
+                cellsCords[index++] = right;  cellsCords[index++] = top;
+                cellsCords[index++] = r;      cellsCords[index++] = g;      cellsCords[index++] = b;
+
+                // vertex 3: bottom-right
+                cellsCords[index++] = right;  cellsCords[index++] = bottom;
+                cellsCords[index++] = r;      cellsCords[index++] = g;      cellsCords[index++] = b;
             }
         }
 
-        normalizeCords(cellsCords, windowWidth, windowHeight);
+        normalizeCords(cellsCords, windowWidth, windowHeight, 5);
         return cellsCords;
     }
 
-    private void normalizeCords(float[] vertices, int width, int height) {
-        for (int i = 0; i < vertices.length; i += 2) {
+    private void normalizeCords(float[] vertices, int width, int height, int stride) {
+        for (int i = 0; i < vertices.length; i += stride) {
             vertices[i] = (vertices[i] / width) * 2.0f - 1.0f;
             vertices[i + 1] = 1.0f - (vertices[i + 1] / height) * 2.0f;
         }
@@ -204,7 +220,7 @@ public class Window implements GameEventListener{
         Shader shader = new Shader("/shaders/vertex.glsl", "/shaders/fragment.glsl");
 
         float[] vertices = makeGrid(cellCount, windowWidth, windowHeight);
-        normalizeCords(vertices, windowWidth, windowHeight);
+        normalizeCords(vertices, windowWidth, windowHeight, 2);
         bufferInit(vertices);
         cellBufferInit();
 
@@ -231,12 +247,13 @@ public class Window implements GameEventListener{
 
             // live cells; skip the draw call when there are none
             if (cellIndexCount > 0) {
-                shader.setColour(0.0f, 0.8f, 0.3f);
+                shader.setUniformInt("useVertexColor", 1);
                 glBindVertexArray(cellVao[0]);
                 glDrawElements(GL_TRIANGLES, cellIndexCount, GL_UNSIGNED_INT, 0L);
             }
 
-            shader.setColour(1.0f, 1.0f, 1.0f);
+            shader.setUniformInt("useVertexColor", 0);
+            shader.setColour(1.0f, 1.0f, 1.0f, 0.7f);
 
             glBindVertexArray(vaoArray[0]);
             glDrawArrays(GL_LINES, 0, vertices.length / 2);
@@ -274,8 +291,12 @@ public class Window implements GameEventListener{
         glBindVertexArray(cellVao[0]);
 
         glBindBuffer(GL_ARRAY_BUFFER, cellVbo[0]);
-        glVertexAttribPointer(0, 2, GL_FLOAT, false, 2 * Float.BYTES, 0L);
+        // attribute 0: position (2 floats)
+        glVertexAttribPointer(0, 2, GL_FLOAT, false, 5 * Float.BYTES, 0L);
         glEnableVertexAttribArray(0);
+        // attribute 1: color (3 floats)
+        glVertexAttribPointer(1, 3, GL_FLOAT, false, 5 * Float.BYTES, 2L * Float.BYTES);
+        glEnableVertexAttribArray(1);
 
         // Pre-fill static indices for all possible cells: 2 triangles (6 indices) per quad
         int maxCells = cellCount * cellCount;
@@ -308,14 +329,37 @@ public class Window implements GameEventListener{
         glBindBuffer(GL_ARRAY_BUFFER, 0);
         glBindVertexArray(0);
 
-        // 4 vertices (8 floats) per cell -> 6 indices per cell
-        cellIndexCount = (cellsCords.length / 8) * 6;
+        // 4 vertices (20 floats) per cell -> 6 indices per cell
+        cellIndexCount = (cellsCords.length / 20) * 6;
     }
 
     @Override 
     public void onEvent(GameEvent event, Object data) {
         if (event == GameEvent.STATE_CHANGED) {
             gridState = (boolean[][]) data;
+            int rows = gridState.length;
+            int cols = gridState[0].length;
+            for (int i = 0; i < rows; i++) {
+                for (int j = 0; j < cols; j++) {
+                    int idx = i * cols + j;
+                    if (gridState[i][j]) {
+                        cellAge[idx]++;
+                    } else {
+                        cellAge[idx] = 0;
+                    }
+                }
+            }
+            cellsDirty = true;
+        } else if (event == GameEvent.CELL_EDITED) {
+            int[] edit = (int[]) data;
+            int xNew = edit[0];
+            int yNew = edit[1];
+            boolean alive = (edit[2] == 1);
+            if (gridState == null) {
+                gridState = new boolean[cellCount][cellCount];
+            }
+            gridState[xNew][yNew] = alive;
+            cellAge[xNew * cellCount + yNew] = alive ? 1 : 0;
             cellsDirty = true;
         }
     }
@@ -332,8 +376,6 @@ public class Window implements GameEventListener{
 
         cords[0] = Math.min(row, cellCount - 1);
         cords[1] = Math.min(col, cellCount - 1);
-
-        System.out.printf("x: %d, y: %d\n", cords[0], cords[1]);
 
         bus.publish(GameEvent.ADD_CELL, cords);
     }
